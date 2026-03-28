@@ -10,29 +10,29 @@ using namespace std;
 
 sf::Font font;
 ClassroomSystem sys;
-int screen = 0, selRoom = -1, selLec = -1;
+int screen = 0, selRoom = -1, selLec = -1, oldLec = -1, newLec = -1, rescheduleStep = 0;
 string input = "", msgTitle = "", msgText = "";
 
-void drawBtn(sf::RenderWindow& w, float x, float y, float bw, float h, string txt, sf::Color c, bool hov)
+void drawBtn(sf::RenderWindow& w, float x, float y, float ww, float h, string txt, sf::Color c, bool hov)
 {
-    sf::RectangleShape btn(sf::Vector2f(bw, h));
+    sf::RectangleShape btn(sf::Vector2f(ww, h));
     btn.setPosition(x, y);
     btn.setFillColor(hov ? sf::Color(c.r*0.8, c.g*0.8, c.b*0.8) : c);
     w.draw(btn);
     
     sf::Text t(txt, font, 14);
-    t.setPosition(x + (bw - t.getGlobalBounds().width)/2, y + (h-18)/2);
+    t.setPosition(x + (ww - t.getGlobalBounds().width)/2, y + (h-18)/2);
     t.setFillColor(sf::Color::White);
     w.draw(t);
 }
 
-void drawInput(sf::RenderWindow& w, float x, float y, float bw, float h, string txt, bool pwd)
+void drawInput(sf::RenderWindow& w, float x, float y, float ww, float h, string txt, bool pwd)
 {
-    sf::RectangleShape box(sf::Vector2f(bw, h));
+    sf::RectangleShape box(sf::Vector2f(ww, h));
     box.setPosition(x, y);
     box.setFillColor(sf::Color::White);
     box.setOutlineThickness(2);
-    box.setOutlineColor(sf::Color(100, 100, 100));
+    box.setOutlineColor(sf::Color(200, 200, 200));
     w.draw(box);
     
     sf::Text t(pwd ? string(txt.size(), '*') : txt, font, 14);
@@ -41,9 +41,9 @@ void drawInput(sf::RenderWindow& w, float x, float y, float bw, float h, string 
     w.draw(t);
 }
 
-void drawList(sf::RenderWindow& w, float x, float y, float bw, float h, vector<string>& items, int sel)
+void drawList(sf::RenderWindow& w, float x, float y, float ww, float h, vector<string>& items, int sel, int highlight1 = -1, int highlight2 = -1)
 {
-    sf::RectangleShape bg(sf::Vector2f(bw, h));
+    sf::RectangleShape bg(sf::Vector2f(ww, h));
     bg.setPosition(x, y);
     bg.setFillColor(sf::Color::White);
     bg.setOutlineThickness(1);
@@ -53,14 +53,21 @@ void drawList(sf::RenderWindow& w, float x, float y, float bw, float h, vector<s
     float ih = 32;
     for (int i = 0; i < items.size() && i * ih < h - 5; i++)
     {
-        sf::RectangleShape item(sf::Vector2f(bw - 6, ih - 2));
+        sf::RectangleShape item(sf::Vector2f(ww - 6, ih - 2));
         item.setPosition(x + 3, y + 3 + i * ih);
-        item.setFillColor(i == sel ? sf::Color(52, 152, 219) : sf::Color(240, 240, 240));
+        
+        sf::Color col;
+        if (i == highlight1) col = sf::Color(52, 152, 219); // Blue for old
+        else if (i == highlight2) col = sf::Color(46, 204, 113); // Green for new
+        else if (i == sel) col = sf::Color(230, 126, 34); // Orange for selected
+        else col = sf::Color(240, 240, 240);
+        
+        item.setFillColor(col);
         w.draw(item);
         
         sf::Text t(items[i], font, 11);
         t.setPosition(x + 8, y + 8 + i * ih);
-        t.setFillColor(i == sel ? sf::Color::White : sf::Color::Black);
+        t.setFillColor(i == highlight1 || i == highlight2 ? sf::Color::White : sf::Color::Black);
         w.draw(t);
     }
 }
@@ -69,7 +76,7 @@ void showMsg(string title, string text) { msgTitle = title; msgText = text; scre
 
 void runSFML()
 {
-    sf::RenderWindow window(sf::VideoMode(850, 550), "Classroom Management System");
+    sf::RenderWindow window(sf::VideoMode(900, 550), "Classroom Management System");
     window.setFramerateLimit(60);
     
     if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf"))
@@ -147,14 +154,60 @@ void runSFML()
                     }
                     if (mx > 30 && mx < 180 && my > 340 && my < 380) screen = 6;
                     if (mx > 30 && mx < 180 && my > 390 && my < 430) { sys.logout(); screen = 0; }
+                    if (mx > 30 && mx < 180 && my > 440 && my < 480) screen = 7; // Reschedule
                     
                     // Room list click
-                    if (mx > 200 && mx < 420) { int idx = (my - 93) / 32; 
-                        if (idx >= 0 && idx < sys.classroomCount()) { selRoom = idx; selLec = -1; } }
+                    if (mx > 200 && mx < 420) 
+                    { 
+                        int idx = (my - 93) / 32; 
+                        if (idx >= 0 && idx < sys.classroomCount()) 
+                        { 
+                            selRoom = idx; 
+                            selLec = -1; 
+                            oldLec = -1;
+                            newLec = -1;
+                            rescheduleStep = 0;
+                        } 
+                    }
                     // Lecture list click
-                    if (mx > 440 && mx < 820 && selRoom >= 0) { int idx = (my - 93) / 32;
+                    if (mx > 440 && mx < 820 && selRoom >= 0) 
+                    { 
+                        int idx = (my - 93) / 32;
                         Classroom* r = sys.getClassroom(selRoom);
-                        if (r && idx >= 0 && idx < r->getLectureCount()) selLec = idx; }
+                        if (r && idx >= 0 && idx < r->getLectureCount()) 
+                        {
+                            if (screen == 7) // Reschedule screen
+                            {
+                                if (rescheduleStep == 0)
+                                {
+                                    oldLec = idx;
+                                    rescheduleStep = 1;
+                                }
+                                else if (rescheduleStep == 1)
+                                {
+                                    newLec = idx;
+                                    // Try reschedule
+                                    if (sys.reschedule(selRoom, oldLec, newLec))
+                                    {
+                                        showMsg("OK", "Rescheduled!");
+                                        oldLec = -1;
+                                        newLec = -1;
+                                        rescheduleStep = 0;
+                                    }
+                                    else
+                                    {
+                                        showMsg("Error", "Cannot reschedule!\nOld must be ACTIVE\nNew must be Free Slot");
+                                        newLec = -1;
+                                        rescheduleStep = 0;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                selLec = idx;
+                            }
+                        }
+                    }
                 }
                 // User Panel
                 else if (screen == 3)
@@ -207,6 +260,17 @@ void runSFML()
                     if (mx > 50 && mx < 500) { int idx = (my - 93) / 32;
                         if (idx >= 0 && idx < sys.requestCount()) selLec = idx; }
                 }
+                // Reschedule Screen
+                else if (screen == 7)
+                {
+                    if (mx > 700 && mx < 820 && my > 480 && my < 515) 
+                    { 
+                        screen = 2; 
+                        oldLec = -1; 
+                        newLec = -1; 
+                        rescheduleStep = 0;
+                    }
+                }
                 // Message
                 else if (screen == 9)
                 {
@@ -230,9 +294,9 @@ void runSFML()
             sub.setFillColor(sf::Color(100, 100, 100));
             window.draw(sub);
             
-            drawBtn(window, 320, 180, 210, 45, "Admin Login", sf::Color(52, 152, 219), my > 180 && my < 225);
-            drawBtn(window, 320, 240, 210, 45, "User Menu", sf::Color(46, 204, 113), my > 240 && my < 285);
-            drawBtn(window, 320, 300, 210, 45, "Exit", sf::Color(231, 76, 60), my > 300 && my < 345);
+            drawBtn(window, 320, 180, 210, 45, "Admin Login", sf::Color(52, 152, 219), mx > 180 && my < 225);
+            drawBtn(window, 320, 240, 210, 45, "User Menu", sf::Color(46, 204, 113), mx > 240 && my < 285);
+            drawBtn(window, 320, 300, 210, 45, "Exit", sf::Color(231, 76, 60), mx > 300 && my < 345);
         }
         else if (screen == 1)
         {
@@ -254,22 +318,28 @@ void runSFML()
             drawBtn(window, 30, 290, 150, 40, "Delete Room", sf::Color(192, 57, 43), false);
             drawBtn(window, 30, 340, 150, 40, "Requests", sf::Color(155, 89, 182), false);
             drawBtn(window, 30, 390, 150, 40, "Logout", sf::Color(149, 165, 166), false);
+            drawBtn(window, 30, 440, 150, 40, "Reschedule", sf::Color(155, 89, 182), false);
             
             vector<string> rooms;
-            for (int i = 0; i < sys.classroomCount(); i++) rooms.push_back(sys.getClassroom(i)->getName());
+            for (int i = 0; i < sys.classroomCount(); i++) 
+                rooms.push_back(sys.getClassroom(i)->getName());
             drawList(window, 200, 90, 220, 350, rooms, selRoom);
             
             vector<string> lecs;
             if (selRoom >= 0)
             {
-                vector<Lecture>& s = sys.getClassroom(selRoom)->getSchedule();
-                for (int i = 0; i < s.size(); i++)
-                    lecs.push_back(s[i].getTime() + " " + s[i].getSubject() + " [" + s[i].getStatusString() + "]");
+                Classroom* r = sys.getClassroom(selRoom);
+                for (int i = 0; i < r->getLectureCount(); i++)
+                {
+                    Lecture* l = r->getLecture(i);
+                    string status = l->getStatusString();
+                    lecs.push_back(l->getTime() + " " + l->getSubject() + " [" + status + "]");
+                }
             }
             drawList(window, 440, 90, 380, 350, lecs, selLec);
             
             sf::Text info("Pending: " + to_string(sys.pendingCount()), font, 12);
-            info.setPosition(30, 450);
+            info.setPosition(30, 500);
             info.setFillColor(sf::Color::Black);
             window.draw(info);
         }
@@ -308,9 +378,12 @@ void runSFML()
             vector<string> lecs;
             if (selRoom >= 0)
             {
-                vector<Lecture>& s = sys.getClassroom(selRoom)->getSchedule();
-                for (int i = 0; i < s.size(); i++)
-                    lecs.push_back(s[i].getTime() + " | " + s[i].getSubject() + " [" + s[i].getStatusString() + "]");
+                Classroom* r = sys.getClassroom(selRoom);
+                for (int i = 0; i < r->getLectureCount(); i++)
+                {
+                    Lecture* l = r->getLecture(i);
+                    lecs.push_back(l->getTime() + " | " + l->getSubject() + " [" + l->getStatusString() + "]");
+                }
             }
             drawList(window, 300, 90, 520, 380, lecs, selLec);
             drawBtn(window, 700, 480, 120, 35, "Back", sf::Color(149, 165, 166), false);
@@ -334,9 +407,64 @@ void runSFML()
             drawBtn(window, 190, 420, 120, 35, "Reject", sf::Color(231, 76, 60), false);
             drawBtn(window, 700, 420, 120, 35, "Back", sf::Color(149, 165, 166), false);
         }
+        else if (screen == 7) // Reschedule
+        {
+            sf::Text lbl1("Rooms", font, 13); lbl1.setPosition(50, 70); lbl1.setFillColor(sf::Color::Black); window.draw(lbl1);
+            sf::Text lbl2("Schedule (Select lecture to move)", font, 13); lbl2.setPosition(200, 70); lbl2.setFillColor(sf::Color::Black); window.draw(lbl2);
+            sf::Text lbl3("Free Slots (Select destination)", font, 13); lbl3.setPosition(500, 70); lbl3.setFillColor(sf::Color::Black); window.draw(lbl3);
+            
+            // Room list
+            vector<string> rooms;
+            for (int i = 0; i < sys.classroomCount(); i++) 
+                rooms.push_back(sys.getClassroom(i)->getName());
+            drawList(window, 50, 90, 130, 350, rooms, selRoom);
+            
+            // Schedule list
+            vector<string> scheduleList;
+            if (selRoom >= 0)
+            {
+                Classroom* r = sys.getClassroom(selRoom);
+                for (int i = 0; i < r->getLectureCount(); i++)
+                {
+                    Lecture* l = r->getLecture(i);
+                    scheduleList.push_back(l->getTime() + " " + l->getSubject() + " [" + l->getStatusString() + "]");
+                }
+            }
+            drawList(window, 200, 90, 280, 350, scheduleList, selLec, oldLec, newLec);
+            
+            // Free slots list
+            vector<string> freeSlots;
+            if (selRoom >= 0)
+            {
+                Classroom* r = sys.getClassroom(selRoom);
+                for (int i = 0; i < r->getLectureCount(); i++)
+                {
+                    Lecture* l = r->getLecture(i);
+                    if (l->isFreeSlot() && l->getStatus() == Constants::STATUS_OFF)
+                    {
+                        freeSlots.push_back(l->getTime() + " - Free");
+                    }
+                }
+            }
+            drawList(window, 500, 90, 200, 350, freeSlots, -1, -1, newLec);
+            
+            // Instructions
+            sf::Text instr;
+            instr.setFont(font);
+            if (rescheduleStep == 0)
+                instr.setString("Step 1: Select lecture to move (blue)");
+            else
+                instr.setString("Step 2: Select free slot (green)");
+            instr.setCharacterSize(12);
+            instr.setFillColor(sf::Color(60, 60, 60));
+            instr.setPosition(200, 460);
+            window.draw(instr);
+            
+            drawBtn(window, 700, 480, 120, 35, "Back", sf::Color(149, 165, 166), false);
+        }
         else if (screen == 9)
         {
-            sf::RectangleShape ov(sf::Vector2f(850, 550));
+            sf::RectangleShape ov(sf::Vector2f(900, 550));
             ov.setFillColor(sf::Color(0, 0, 0, 100));
             window.draw(ov);
             
@@ -421,33 +549,45 @@ void consoleMenu(ClassroomSystem& sys)
                     int r, l;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showSchedule(r - 1); cout << "Lecture: "; cin >> l;
-                    sys.markOff(r - 1, l);
+                    if (sys.markOff(r - 1, l)) cout << "Marked OFF!\n";
+                    else cout << "Failed! Already OFF or break?\n";
                 }
                 else if (choice == 6)
                 {
                     int r, l;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showSchedule(r - 1); cout << "Lecture: "; cin >> l;
-                    sys.deleteLecture(r - 1, l);
+                    if (sys.deleteLecture(r - 1, l)) cout << "Deleted!\n";
+                    else cout << "Failed!\n";
                 }
-                else if (choice == 7)
+                else if (choice == 7) // Reschedule
                 {
-                    int r, l; string t;
+                    int r, oldL, newL;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
-                    sys.showSchedule(r - 1); cout << "Lecture: "; cin >> l;
-                    cout << "New time: "; cin >> t;
-                    sys.reschedule(r - 1, l, t);
+                    sys.showSchedule(r - 1);
+                    cout << "Lecture to move: "; cin >> oldL;
+                    sys.showSchedule(r - 1); // Show indices again
+                    cout << "Destination free slot: "; cin >> newL;
+                    
+                    if (sys.reschedule(r - 1, oldL, newL))
+                        cout << "Rescheduled!\n";
+                    else
+                        cout << "Failed! Check:\n";
+                        cout << "- Old lecture must be ACTIVE\n";
+                        cout << "- New slot must be Free Slot (OFF)\n";
                 }
                 else if (choice == 8) sys.showRequests();
                 else if (choice == 9)
                 {
                     sys.showRequests(); cout << "Index: "; cin >> choice;
-                    sys.approveRequest(choice);
+                    if (sys.approveRequest(choice)) cout << "Approved!\n";
+                    else cout << "Failed!\n";
                 }
                 else if (choice == 10)
                 {
                     sys.showRequests(); cout << "Index: "; cin >> choice;
-                    sys.rejectRequest(choice);
+                    if (sys.rejectRequest(choice)) cout << "Rejected!\n";
+                    else cout << "Failed!\n";
                 }
             }
         }
@@ -479,7 +619,7 @@ void consoleMenu(ClassroomSystem& sys)
                     sys.showAvailable(r - 1); cout << "Lecture: "; cin >> l;
                     cout << "Purpose: "; cin.ignore(); getline(cin, p);
                     if (sys.facultyRequest(n, r - 1, l, p)) cout << "Sent!\n";
-                    else cout << "Failed!\n";
+                    else cout << "Failed! Slot not available.\n";
                 }
             }
         }

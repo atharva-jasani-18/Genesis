@@ -63,14 +63,10 @@ bool ClassroomSystem::approveRequest(int index)
         {
             if (classrooms[i].getName() == room)
             {
-                vector<Lecture>& sched = classrooms[i].getSchedule();
-                for (int j = 0; j < sched.size(); j++)
+                int idx = classrooms[i].findLectureByTime(time);
+                if (idx != -1)
                 {
-                    if (sched[j].getTime() == time)
-                    {
-                        sched[j].book(requests[index].getRequester());
-                        break;
-                    }
+                    classrooms[i].bookLecture(idx, requests[index].getRequester());
                 }
                 break;
             }
@@ -105,17 +101,10 @@ bool ClassroomSystem::markOff(int roomIdx, int lectureIdx)
     return false;
 }
 
-bool ClassroomSystem::reschedule(int roomIdx, int lectureIdx, string newTime)
+bool ClassroomSystem::reschedule(int roomIdx, int oldIdx, int newIdx)
 {
     if (roomIdx >= 0 && roomIdx < classrooms.size())
-    {
-        vector<Lecture>& sched = classrooms[roomIdx].getSchedule();
-        if (lectureIdx >= 0 && lectureIdx < sched.size())
-        {
-            sched[lectureIdx].setStatus(Constants::STATUS_OFF);
-            return true;
-        }
-    }
+        return classrooms[roomIdx].rescheduleLecture(oldIdx, newIdx);
     return false;
 }
 
@@ -129,24 +118,32 @@ bool ClassroomSystem::deleteLecture(int roomIdx, int lectureIdx)
 bool ClassroomSystem::facultyRequest(string name, int roomIdx, int lectureIdx, string purpose)
 {
     if (roomIdx < 0 || roomIdx >= classrooms.size()) return false;
-    vector<Lecture>& sched = classrooms[roomIdx].getSchedule();
-    if (lectureIdx < 0 || lectureIdx >= sched.size()) return false;
-    if (!sched[lectureIdx].isAvailable()) return false;
+    Classroom* room = getClassroom(roomIdx);
+    if (!room) return false;
     
-    requests.push_back(Request(name, classrooms[roomIdx].getName(), 
-                               sched[lectureIdx].getTime(), purpose));
+    Lecture* lec = room->getLecture(lectureIdx);
+    if (!lec || !lec->isAvailable()) return false;
+    
+    requests.push_back(Request(name, room->getName(), lec->getTime(), purpose));
     return true;
 }
 
 bool ClassroomSystem::clubRequest(string name, int roomIdx, string time, string purpose)
 {
     if (roomIdx < 0 || roomIdx >= classrooms.size()) return false;
-    requests.push_back(Request(name, classrooms[roomIdx].getName(), time, purpose));
+    Classroom* room = getClassroom(roomIdx);
+    if (!room) return false;
+    
+    // Check if time slot exists and is available
+    int idx = room->findLectureByTime(time);
+    if (idx == -1) return false;
+    
+    Lecture* lec = room->getLecture(idx);
+    if (!lec || !lec->isAvailable()) return false;
+    
+    requests.push_back(Request(name, room->getName(), time, purpose));
     return true;
 }
-
-vector<Classroom>& ClassroomSystem::getClassrooms() { return classrooms; }
-vector<Request>& ClassroomSystem::getRequests() { return requests; }
 
 Classroom* ClassroomSystem::getClassroom(int index)
 {

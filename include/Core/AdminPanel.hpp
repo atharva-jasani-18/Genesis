@@ -4,7 +4,6 @@
 #include <string>
 using namespace std;
 
-// ABSTRACTION - Pure virtual class
 class AdminPanel
 {
 public:

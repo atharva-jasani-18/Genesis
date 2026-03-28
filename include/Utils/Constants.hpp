@@ -11,6 +11,7 @@ namespace Constants
     const int STATUS_ACTIVE = 0;
     const int STATUS_OFF = 1;
     const int STATUS_BOOKED = 2;
+    const int STATUS_RESCHEDULED = 3;
     
     const int REQUEST_PENDING = 0;
     const int REQUEST_APPROVED = 1;

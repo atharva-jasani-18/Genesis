@@ -28,9 +28,12 @@ public:
     bool markLectureOff(int index);
     bool bookLecture(int index, string name);
     bool deleteLecture(int index);
+    bool rescheduleLecture(int oldIndex, int newIndex);
     void showSchedule();
     void showAvailable();
     bool hasAvailable();
+    Lecture* getLecture(int index);
+    int findLectureByTime(string time);
 };
 
 #endif
