@@ -3,8 +3,7 @@
 #include <iostream>
 using namespace std;
 
-Request::Request()
-{
+Request::Request() {
     requester = "";
     room = "";
     time = "";
@@ -12,8 +11,7 @@ Request::Request()
     status = Constants::REQUEST_PENDING;
 }
 
-Request::Request(string req, string rm, string t, string p)
-{
+Request::Request(string req, string rm, string t, string p) {
     requester = req;
     room = rm;
     time = t;
@@ -27,15 +25,13 @@ string Request::getTime() { return time; }
 string Request::getPurpose() { return purpose; }
 int Request::getStatus() { return status; }
 
-string Request::getStatusString()
-{
+string Request::getStatusString() {
     if (status == Constants::REQUEST_APPROVED) return "APPROVED";
     if (status == Constants::REQUEST_REJECTED) return "REJECTED";
     return "PENDING";
 }
 
-bool Request::approve()
-{
+bool Request::approve() {
     if (status == Constants::REQUEST_PENDING)
     {
         status = Constants::REQUEST_APPROVED;
@@ -44,8 +40,7 @@ bool Request::approve()
     return false;
 }
 
-bool Request::reject()
-{
+bool Request::reject() {
     if (status == Constants::REQUEST_PENDING)
     {
         status = Constants::REQUEST_REJECTED;
@@ -54,13 +49,11 @@ bool Request::reject()
     return false;
 }
 
-bool Request::isPending()
-{
+bool Request::isPending() {
     return status == Constants::REQUEST_PENDING;
 }
 
-void Request::display()
-{
+void Request::display() {
     cout << requester << " | " << room << " | " << time 
          << " | " << purpose << " [" << getStatusString() << "]\n";
 }

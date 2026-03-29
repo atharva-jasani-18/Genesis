@@ -3,8 +3,7 @@
 #include <iostream>
 using namespace std;
 
-Lecture::Lecture()
-{
+Lecture::Lecture() {
     time = "";
     subject = "";
     status = Constants::STATUS_ACTIVE;
@@ -12,8 +11,7 @@ Lecture::Lecture()
     rescheduledTo = "";
 }
 
-Lecture::Lecture(string t, string s, bool isOff)
-{
+Lecture::Lecture(string t, string s, bool isOff) {
     time = t;
     subject = s;
     status = isOff ? Constants::STATUS_OFF : Constants::STATUS_ACTIVE;
@@ -27,8 +25,7 @@ int Lecture::getStatus() { return status; }
 string Lecture::getBookedBy() { return bookedBy; }
 string Lecture::getRescheduledTo() { return rescheduledTo; }
 
-string Lecture::getStatusString()
-{
+string Lecture::getStatusString() {
     if (status == Constants::STATUS_OFF) return "OFF";
     if (status == Constants::STATUS_BOOKED) return "BOOKED";
     if (status == Constants::STATUS_RESCHEDULED) return "RESCHEDULED";
@@ -41,25 +38,21 @@ void Lecture::setStatus(int s) { status = s; }
 void Lecture::setBookedBy(string name) { bookedBy = name; }
 void Lecture::setRescheduledTo(string t) { rescheduledTo = t; }
 
-bool Lecture::markOff()
-{
+bool Lecture::markOff() {
     // Cannot mark break/free slots as OFF (they're already OFF)
     if (isBreak() || isFreeSlot()) return false;
     
     // Only ACTIVE lectures can be marked OFF
-    if (status == Constants::STATUS_ACTIVE)
-    {
+    if (status == Constants::STATUS_ACTIVE) {
         status = Constants::STATUS_OFF;
         return true;
     }
     return false;
 }
 
-bool Lecture::book(string name)
-{
+bool Lecture::book(string name) {
     // Only OFF lectures (that are not breaks) can be booked
-    if (status == Constants::STATUS_OFF && !isBreak())
-    {
+    if (status == Constants::STATUS_OFF && !isBreak()) {
         status = Constants::STATUS_BOOKED;
         bookedBy = name;
         return true;
@@ -67,8 +60,7 @@ bool Lecture::book(string name)
     return false;
 }
 
-bool Lecture::rescheduleTo(string newTime)
-{
+bool Lecture::rescheduleTo(string newTime) {
     // Only ACTIVE lectures can be rescheduled
     if (status == Constants::STATUS_ACTIVE)
     {
@@ -79,24 +71,20 @@ bool Lecture::rescheduleTo(string newTime)
     return false;
 }
 
-bool Lecture::isAvailable()
-{
+bool Lecture::isAvailable() {
     // OFF and not booked and not a break
     return (status == Constants::STATUS_OFF && bookedBy.empty() && !isBreak());
 }
 
-bool Lecture::isBreak()
-{
+bool Lecture::isBreak() {
     return subject == "Lunch Break";
 }
 
-bool Lecture::isFreeSlot()
-{
+bool Lecture::isFreeSlot() {
     return subject == "Free Slot";
 }
 
-void Lecture::reset()
-{
+void Lecture::reset() {
     status = Constants::STATUS_ACTIVE;
     bookedBy = "";
     rescheduledTo = "";

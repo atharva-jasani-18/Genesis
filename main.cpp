@@ -495,73 +495,78 @@ void runSFML()
 #endif
 
 // ===================== CONSOLE MODE =====================
-void consoleMenu(ClassroomSystem& sys)
-{
+void consoleMenu(ClassroomSystem& sys) {
     int choice;
-    while (true)
-    {
+    while (true) {
         cout << "\n===== MAIN MENU =====\n";
         cout << "1. Admin Login\n2. User Menu\n3. Status\n0. Exit\n> ";
         cin >> choice;
-        
         if (choice == 0) break;
-        if (choice == 3) { sys.showStatus(); continue; }
-        
-        if (choice == 1)
-        {
+        if (choice == 3) {
+            sys.showStatus();
+            continue;
+        }
+        if (choice == 1) {
             string pass;
-            cout << "Password: ";
+            cout << "Enter Admin Password: ";
             cin >> pass;
-            if (!sys.login(pass)) { cout << "Wrong!\n"; continue; }
-            
-            while (true)
-            {
+            if (!sys.login(pass)) { 
+                cout << "Wrong Password!\n"; 
+                continue; 
+            }
+            while (true) {
                 cout << "\n===== ADMIN =====\n";
-                cout << "1. Add Room\n2. Delete Room\n3. View Rooms\n4. Schedule\n";
-                cout << "5. Mark OFF\n6. Delete Lecture\n7. Reschedule\n8. Requests\n";
+                cout << "1. Add Classroom\n2. Delete Classroom\n3. View Classrooms\n";
+                cout << "4. View Schedule\n5. Mark OFF\n6. Delete Lecture\n";
+                cout << "7. Reschedule\n8. Requests\n";
                 cout << "9. Approve\n10. Reject\n0. Logout\n> ";
                 cin >> choice;
                 
-                if (choice == 0) { sys.logout(); break; }
-                if (choice == 1)
-                {
+                if (choice == 0) { // Logout
+                    sys.logout(); 
+                    break; 
+                }
+                if (choice == 1) { // Add Room
                     string n, b; int c;
-                    cout << "Name: "; cin.ignore(); getline(cin, n);
-                    cout << "Building: "; getline(cin, b);
-                    cout << "Capacity: "; cin >> c;
+                    cout << "Name: "; 
+                    cin.ignore(); 
+                    getline(cin, n);
+                    cout << "Building: "; 
+                    getline(cin, b);
+                    cout << "Capacity: "; 
+                    cin >> c;
                     sys.addClassroom(n, b, c);
                 }
-                else if (choice == 2)
-                {
+                else if (choice == 2) { // Delete Room
                     sys.showClassrooms();
-                    cout << "Index: "; cin >> choice;
+                    cout << "Enter Classroom Index to Delete: "; cin >> choice;
                     sys.deleteClassroom(choice - 1);
                 }
-                else if (choice == 3) sys.showClassrooms();
-                else if (choice == 4)
-                {
+                else if (choice == 3) { // View Room
                     sys.showClassrooms();
-                    cout << "Room: "; cin >> choice;
+                }
+                else if (choice == 4) { // View Schedule
+                    sys.showClassrooms();
+                    cout << "Enter Classroom Index: "; cin >> choice;
                     sys.showSchedule(choice - 1);
                 }
-                else if (choice == 5)
-                {
+                else if (choice == 5) { // Mark OFF
                     int r, l;
-                    sys.showClassrooms(); cout << "Room: "; cin >> r;
-                    sys.showSchedule(r - 1); cout << "Lecture: "; cin >> l;
+                    sys.showClassrooms(); cout << "Enter Classroom Index: "; 
+                    cin >> r;
+                    sys.showSchedule(r - 1); cout << "Enter Lecture Index to Mark OFF: "; 
+                    cin >> l;
                     if (sys.markOff(r - 1, l)) cout << "Marked OFF!\n";
-                    else cout << "Failed! Already OFF or break?\n";
+                    else cout << "Failed! Already OFF or break\n";
                 }
-                else if (choice == 6)
-                {
+                else if (choice == 6) { 
                     int r, l;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showSchedule(r - 1); cout << "Lecture: "; cin >> l;
                     if (sys.deleteLecture(r - 1, l)) cout << "Deleted!\n";
                     else cout << "Failed!\n";
                 }
-                else if (choice == 7) // Reschedule
-                {
+                else if (choice == 7) { // Reschedule
                     int r, oldL, newL;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showSchedule(r - 1);
@@ -571,20 +576,19 @@ void consoleMenu(ClassroomSystem& sys)
                     
                     if (sys.reschedule(r - 1, oldL, newL))
                         cout << "Rescheduled!\n";
-                    else
+                    else{
                         cout << "Failed! Check:\n";
                         cout << "- Old lecture must be ACTIVE\n";
                         cout << "- New slot must be Free Slot (OFF)\n";
+                    }
                 }
                 else if (choice == 8) sys.showRequests();
-                else if (choice == 9)
-                {
+                else if (choice == 9) {
                     sys.showRequests(); cout << "Index: "; cin >> choice;
                     if (sys.approveRequest(choice)) cout << "Approved!\n";
                     else cout << "Failed!\n";
                 }
-                else if (choice == 10)
-                {
+                else if (choice == 10) {
                     sys.showRequests(); cout << "Index: "; cin >> choice;
                     if (sys.rejectRequest(choice)) cout << "Rejected!\n";
                     else cout << "Failed!\n";

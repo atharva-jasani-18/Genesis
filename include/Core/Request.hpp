@@ -4,8 +4,7 @@
 #include <string>
 using namespace std;
 
-class Request
-{
+class Request {
 private:
     string requester;
     string room;

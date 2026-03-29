@@ -4,8 +4,7 @@
 #include <string>
 using namespace std;
 
-namespace Constants
-{
+namespace Constants {
     const string ADMIN_PASSWORD = "admin123";
     
     const int STATUS_ACTIVE = 0;
@@ -26,8 +25,8 @@ namespace Constants
     };
     
     const string DEFAULT_SUBJECTS[TOTAL_SLOTS] = {
-        "Free Slot", "Mathematics", "Physics", "Lunch Break",
-        "Chemistry", "English", "Computer", "Biology",
+        "Free Slot", "Mathematics - 2", "Physics", "Lunch Break",
+        "Chemistry", "Program Specific", "Computer Programming", "ELX",
         "Free Slot", "Free Slot", "Free Slot"
     };
 }

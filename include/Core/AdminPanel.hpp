@@ -4,8 +4,7 @@
 #include <string>
 using namespace std;
 
-class AdminPanel
-{
+class AdminPanel {
 public:
     virtual void addClassroom(string name, string building, int capacity) = 0;
     virtual bool deleteClassroom(int index) = 0;

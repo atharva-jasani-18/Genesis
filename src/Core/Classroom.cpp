@@ -3,15 +3,13 @@
 #include <iostream>
 using namespace std;
 
-Classroom::Classroom()
-{
+Classroom::Classroom() {
     name = "";
     building = "Main";
     capacity = 50;
 }
 
-Classroom::Classroom(string n, string b, int c)
-{
+Classroom::Classroom(string n, string b, int c) {
     name = n;
     building = b;
     capacity = c;
@@ -24,34 +22,28 @@ int Classroom::getCapacity() { return capacity; }
 vector<Lecture>& Classroom::getSchedule() { return schedule; }
 int Classroom::getLectureCount() { return schedule.size(); }
 
-void Classroom::initSchedule()
-{
+void Classroom::initSchedule() {
     schedule.clear();
-    for (int i = 0; i < Constants::TOTAL_SLOTS; i++)
-    {
+    for (int i = 0; i < Constants::TOTAL_SLOTS; i++) {
         bool isOff = (i == 0 || i == 3 || i >= 8);  // Free slots and lunch break
         schedule.push_back(Lecture(Constants::TIME_SLOTS[i], Constants::DEFAULT_SUBJECTS[i], isOff));
     }
 }
 
-bool Classroom::markLectureOff(int index)
-{
+bool Classroom::markLectureOff(int index) {
     if (index >= 0 && index < schedule.size())
         return schedule[index].markOff();
     return false;
 }
 
-bool Classroom::bookLecture(int index, string name)
-{
+bool Classroom::bookLecture(int index, string name) {
     if (index >= 0 && index < schedule.size())
         return schedule[index].book(name);
     return false;
 }
 
-bool Classroom::deleteLecture(int index)
-{
-    if (index >= 0 && index < schedule.size())
-    {
+bool Classroom::deleteLecture(int index) {
+    if (index >= 0 && index < schedule.size()) {
         // Convert to free slot instead of removing (keeps schedule size)
         schedule[index].setSubject("Free Slot");
         schedule[index].setStatus(Constants::STATUS_OFF);
@@ -61,8 +53,7 @@ bool Classroom::deleteLecture(int index)
     return false;
 }
 
-bool Classroom::rescheduleLecture(int oldIndex, int newIndex)
-{
+bool Classroom::rescheduleLecture(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= schedule.size() || 
         newIndex < 0 || newIndex >= schedule.size())
         return false;
@@ -95,11 +86,9 @@ bool Classroom::rescheduleLecture(int oldIndex, int newIndex)
     return true;
 }
 
-void Classroom::showSchedule()
-{
+void Classroom::showSchedule() {
     cout << "\n=== Schedule: " << name << " ===\n";
-    for (int i = 0; i < schedule.size(); i++)
-    {
+    for (int i = 0; i < schedule.size(); i++) {
         cout << i << ". " << schedule[i].getTime() << " | "
              << schedule[i].getSubject() << " [" 
              << schedule[i].getStatusString() << "]";
@@ -111,14 +100,11 @@ void Classroom::showSchedule()
     }
 }
 
-void Classroom::showAvailable()
-{
+void Classroom::showAvailable() {
     cout << "\n=== Available Slots in " << name << " ===\n";
     bool found = false;
-    for (int i = 0; i < schedule.size(); i++)
-    {
-        if (schedule[i].isAvailable())
-        {
+    for (int i = 0; i < schedule.size(); i++) {
+        if (schedule[i].isAvailable()) {
             cout << i << ". " << schedule[i].getTime() << " - " 
                  << schedule[i].getSubject() << endl;
             found = true;
@@ -127,24 +113,20 @@ void Classroom::showAvailable()
     if (!found) cout << "*** No slots available! ***\n";
 }
 
-bool Classroom::hasAvailable()
-{
+bool Classroom::hasAvailable() {
     for (int i = 0; i < schedule.size(); i++)
         if (schedule[i].isAvailable()) return true;
     return false;
 }
 
-Lecture* Classroom::getLecture(int index)
-{
+Lecture* Classroom::getLecture(int index) {
     if (index >= 0 && index < schedule.size())
         return &schedule[index];
     return NULL;
 }
 
-int Classroom::findLectureByTime(string time)
-{
-    for (int i = 0; i < schedule.size(); i++)
-    {
+int Classroom::findLectureByTime(string time) {
+    for (int i = 0; i < schedule.size(); i++) {
         if (schedule[i].getTime() == time)
             return i;
     }

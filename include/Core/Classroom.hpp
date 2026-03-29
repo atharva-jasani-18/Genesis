@@ -6,8 +6,7 @@
 #include "Lecture.hpp"
 using namespace std;
 
-class Classroom
-{
+class Classroom {
 private:
     string name;
     string building;

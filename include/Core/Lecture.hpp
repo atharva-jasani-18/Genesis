@@ -4,8 +4,7 @@
 #include <string>
 using namespace std;
 
-class Lecture
-{
+class Lecture {
 private:
     string time;
     string subject;

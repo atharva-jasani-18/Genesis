@@ -8,10 +8,9 @@
 #include "Request.hpp"
 using namespace std;
 
-class ClassroomSystem : public AdminPanel
-{
+class ClassroomSystem : public AdminPanel {
 private:
-    vector<Classroom> classrooms;
+    vector<Classroom> classrooms; // vector<type> variable_name;
     vector<Request> requests;
     bool adminLoggedIn;
 
