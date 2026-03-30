@@ -41,8 +41,7 @@ bool Request::approve() {
 }
 
 bool Request::reject() {
-    if (status == Constants::REQUEST_PENDING)
-    {
+    if (status == Constants::REQUEST_PENDING) {
         status = Constants::REQUEST_REJECTED;
         return true;
     }

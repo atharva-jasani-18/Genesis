@@ -80,7 +80,9 @@ bool ClassroomSystem::rejectRequest(int index) {
 
 void ClassroomSystem::showRequests() {
     cout << "\n=== Requests ===\n";
-    if (requests.empty()) { cout << "No requests.\n"; return; }
+    if (requests.empty()) { 
+        cout << "No requests.\n"; 
+        return; }
     for (int i = 0; i < requests.size(); i++) {
         cout << i << ". ";
         requests[i].display();

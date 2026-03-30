@@ -501,17 +501,17 @@ void consoleMenu(ClassroomSystem& sys) {
         cout << "\n===== MAIN MENU =====\n";
         cout << "1. Admin Login\n2. User Menu\n3. Status\n0. Exit\n> ";
         cin >> choice;
-        if (choice == 0) break;
-        if (choice == 3) {
+        if (choice == 0) break; // Exit
+        if (choice == 3) { // Status
             sys.showStatus();
             continue;
         }
-        if (choice == 1) {
+        if (choice == 1) { // Admin Login
             string pass;
             cout << "Enter Admin Password: ";
             cin >> pass;
-            if (!sys.login(pass)) { 
-                cout << "Wrong Password!\n"; 
+            if (!sys.login(pass)) {
+                cout << "Wrong Password!\n";
                 continue; 
             }
             while (true) {
@@ -559,7 +559,7 @@ void consoleMenu(ClassroomSystem& sys) {
                     if (sys.markOff(r - 1, l)) cout << "Marked OFF!\n";
                     else cout << "Failed! Already OFF or break\n";
                 }
-                else if (choice == 6) { 
+                else if (choice == 6) { // Delete Lecture
                     int r, l;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showSchedule(r - 1); cout << "Lecture: "; cin >> l;
@@ -570,59 +570,55 @@ void consoleMenu(ClassroomSystem& sys) {
                     int r, oldL, newL;
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showSchedule(r - 1);
-                    cout << "Lecture to move: "; cin >> oldL;
-                    sys.showSchedule(r - 1); // Show indices again
+                    cout << "Enter Lecture Index to move: "; cin >> oldL;
+                    sys.showSchedule(r - 1); // Show index again
                     cout << "Destination free slot: "; cin >> newL;
                     
                     if (sys.reschedule(r - 1, oldL, newL))
-                        cout << "Rescheduled!\n";
+                        cout << "Lecture Rescheduled Successfully!\n";
                     else{
                         cout << "Failed! Check:\n";
                         cout << "- Old lecture must be ACTIVE\n";
                         cout << "- New slot must be Free Slot (OFF)\n";
                     }
                 }
-                else if (choice == 8) sys.showRequests();
-                else if (choice == 9) {
+                else if (choice == 8) sys.showRequests(); // Requests
+                else if (choice == 9) { // Approve
                     sys.showRequests(); cout << "Index: "; cin >> choice;
-                    if (sys.approveRequest(choice)) cout << "Approved!\n";
+                    if (sys.approveRequest(choice)) cout << "Request Approved!\n";
                     else cout << "Failed!\n";
                 }
-                else if (choice == 10) {
+                else if (choice == 10) { // Reject
                     sys.showRequests(); cout << "Index: "; cin >> choice;
                     if (sys.rejectRequest(choice)) cout << "Rejected!\n";
                     else cout << "Failed!\n";
                 }
             }
         }
-        else if (choice == 2)
-        {
-            while (true)
-            {
+        else if (choice == 2) {
+            while (true) {
                 cout << "\n===== USER =====\n";
-                cout << "1. View Rooms\n2. Schedule\n3. Available\n4. Request\n0. Back\n> ";
+                cout << "1. View Classrooms\n2. View Schedule\n3. View Available Slots\n";
+                cout << "4. Request to Book\n0. Back\n> ";
                 cin >> choice;
                 
                 if (choice == 0) break;
-                if (choice == 1) sys.showClassrooms();
-                else if (choice == 2)
-                {
-                    sys.showClassrooms(); cout << "Room: "; cin >> choice;
+                if (choice == 1) sys.showClassrooms(); // View Classroom
+                else if (choice == 2) { // View Schedule
+                    sys.showClassrooms(); cout << "Room: "; cin >> choice; 
                     sys.showSchedule(choice - 1);
                 }
-                else if (choice == 3)
-                {
+                else if (choice == 3) { // View Available Slots
                     sys.showClassrooms(); cout << "Room: "; cin >> choice;
                     sys.showAvailable(choice - 1);
                 }
-                else if (choice == 4)
-                {
+                else if (choice == 4) { // Request to Book
                     int r, l; string n, p;
                     cout << "Name: "; cin.ignore(); getline(cin, n);
                     sys.showClassrooms(); cout << "Room: "; cin >> r;
                     sys.showAvailable(r - 1); cout << "Lecture: "; cin >> l;
                     cout << "Purpose: "; cin.ignore(); getline(cin, p);
-                    if (sys.facultyRequest(n, r - 1, l, p)) cout << "Sent!\n";
+                    if (sys.facultyRequest(n, r - 1, l, p)) cout << "Request Sent Successfully!\n";
                     else cout << "Failed! Slot not available.\n";
                 }
             }

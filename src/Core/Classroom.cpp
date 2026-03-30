@@ -61,12 +61,12 @@ bool Classroom::rescheduleLecture(int oldIndex, int newIndex) {
     Lecture& oldLec = schedule[oldIndex];
     Lecture& newLec = schedule[newIndex];
     
-    // Validate: old lecture must be ACTIVE and not booked
+    // old lecture must be ACTIVE and not booked
     if (oldLec.getStatus() != Constants::STATUS_ACTIVE || 
         !oldLec.getBookedBy().empty())
         return false;
     
-    // Validate: new slot must be FREE (Free Slot and OFF)
+    // new slot must be FREE (Free Slot and OFF)
     if (!newLec.isFreeSlot() || newLec.getStatus() != Constants::STATUS_OFF)
         return false;
     
