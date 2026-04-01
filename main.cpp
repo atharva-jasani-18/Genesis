@@ -11,6 +11,7 @@ using namespace std;
 sf::Font font;
 ClassroomSystem sys;
 int screen = 0, selRoom = -1, selLec = -1, oldLec = -1, newLec = -1, rescheduleStep = 0;
+int selReq = -1, prevScreen = 0;
 string input = "", msgTitle = "", msgText = "";
 
 void drawBtn(sf::RenderWindow& w, float x, float y, float ww, float h, string txt, sf::Color c, bool hov)
