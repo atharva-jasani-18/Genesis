@@ -38,6 +38,7 @@ public:
     int classroomCount();
     int requestCount();
     int pendingCount();
+    Request* getRequest(int index);
     
     void showSchedule(int index);
     void showAvailable(int index);

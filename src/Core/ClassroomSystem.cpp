@@ -169,3 +169,9 @@ void ClassroomSystem::showStatus() {
     cout << "Pending: " << pendingCount() << "\n";
     cout << "Admin: " << (adminLoggedIn ? "Yes" : "No") << "\n";
 }
+
+Request* ClassroomSystem::getRequest(int index) {
+    if (index >= 0 && index < (int)requests.size())
+        return &requests[index];
+    return NULL;
+}

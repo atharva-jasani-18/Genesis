@@ -388,21 +388,25 @@ void runSFML()
             drawList(window, 300, 90, 520, 380, lecs, selLec);
             drawBtn(window, 700, 480, 120, 35, "Back", sf::Color(149, 165, 166), false);
         }
+        // Screen 6: Requests
         else if (screen == 6)
         {
             sf::Text lbl("All Requests", font, 16);
             lbl.setPosition(50, 65);
             lbl.setFillColor(sf::Color::Black);
             window.draw(lbl);
-            
+    
             vector<string> reqs;
             for (int i = 0; i < sys.requestCount(); i++)
             {
-                Request& r = sys.getRequests()[i];
-                reqs.push_back(r.getRequester() + " | " + r.getRoom() + " | " + r.getTime() + " [" + r.getStatusString() + "]");
+                Request* r = sys.getRequest(i);
+                if (r != NULL)
+                {
+                reqs.push_back(r->getRequester() + " | " + r->getRoom() + " | " + r->getTime() + " [" + r->getStatusString() + "]");
+                }
             }
-            drawList(window, 50, 90, 500, 310, reqs, selLec);
-            
+            drawList(window, 50, 90, 550, 310, reqs, selReq);
+    
             drawBtn(window, 50, 420, 120, 35, "Approve", sf::Color(46, 204, 113), false);
             drawBtn(window, 190, 420, 120, 35, "Reject", sf::Color(231, 76, 60), false);
             drawBtn(window, 700, 420, 120, 35, "Back", sf::Color(149, 165, 166), false);
