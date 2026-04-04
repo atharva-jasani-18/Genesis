@@ -4,494 +4,829 @@
 #include "Utils/Constants.hpp"
 using namespace std;
 
+
 // ===================== SFML MODE =====================
 #ifdef USE_SFML
 #include <SFML/Graphics.hpp>
 
 sf::Font font;
 ClassroomSystem sys;
-int screen = 0, selRoom = -1, selLec = -1, oldLec = -1, newLec = -1, rescheduleStep = 0;
-int selReq = -1, prevScreen = 0;
-string input = "", msgTitle = "", msgText = "";
 
-void drawBtn(sf::RenderWindow& w, float x, float y, float ww, float h, string txt, sf::Color c, bool hov)
+int screen = 0, prevScreen = 0;
+int selRoom = -1, selLec = -1, selReq = -1, selAvail = -1;
+string input1 = "", input2 = "", input3 = "";
+string msgTitle = "", msgText = "";
+int activeInput = 0;
+
+vector<string> availableSlots;
+vector<int> availableIndices;
+
+void drawBtn(sf::RenderWindow& w, float x, float y, float bw, float h, string txt, sf::Color c, bool hov)
 {
-    sf::RectangleShape btn(sf::Vector2f(ww, h));
+    sf::RectangleShape btn(sf::Vector2f(bw, h));
     btn.setPosition(x, y);
-    btn.setFillColor(hov ? sf::Color(c.r*0.8, c.g*0.8, c.b*0.8) : c);
+    btn.setFillColor(hov ? sf::Color((int)(c.r*0.8), (int)(c.g*0.8), (int)(c.b*0.8)) : c);
     w.draw(btn);
     
-    sf::Text t(txt, font, 14);
-    t.setPosition(x + (ww - t.getGlobalBounds().width)/2, y + (h-18)/2);
+    sf::Text t(txt, font, 13);
+    t.setPosition(x + (bw - t.getGlobalBounds().width)/2, y + (h-16)/2);
     t.setFillColor(sf::Color::White);
     w.draw(t);
 }
 
-void drawInput(sf::RenderWindow& w, float x, float y, float ww, float h, string txt, bool pwd)
+void drawInput(sf::RenderWindow& w, float x, float y, float bw, float h, string txt, string placeholder, bool active, bool pwd = false)
 {
-    sf::RectangleShape box(sf::Vector2f(ww, h));
+    sf::RectangleShape box(sf::Vector2f(bw, h));
     box.setPosition(x, y);
     box.setFillColor(sf::Color::White);
     box.setOutlineThickness(2);
-    box.setOutlineColor(sf::Color(200, 200, 200));
+    box.setOutlineColor(active ? sf::Color(52, 152, 219) : sf::Color(150, 150, 150));
     w.draw(box);
     
-    sf::Text t(pwd ? string(txt.size(), '*') : txt, font, 14);
-    t.setPosition(x + 8, y + (h-18)/2);
-    t.setFillColor(sf::Color::Black);
+    string display = txt.empty() ? placeholder : (pwd ? string(txt.size(), '*') : txt);
+    sf::Text t(display, font, 13);
+    t.setPosition(x + 8, y + (h-16)/2);
+    t.setFillColor(txt.empty() ? sf::Color(150, 150, 150) : sf::Color::Black);
     w.draw(t);
 }
 
-void drawList(sf::RenderWindow& w, float x, float y, float ww, float h, vector<string>& items, int sel, int highlight1 = -1, int highlight2 = -1)
+void drawList(sf::RenderWindow& w, float x, float y, float bw, float h, vector<string>& items, int sel)
 {
-    sf::RectangleShape bg(sf::Vector2f(ww, h));
+    sf::RectangleShape bg(sf::Vector2f(bw, h));
     bg.setPosition(x, y);
     bg.setFillColor(sf::Color::White);
     bg.setOutlineThickness(1);
     bg.setOutlineColor(sf::Color(180, 180, 180));
     w.draw(bg);
     
-    float ih = 32;
-    for (int i = 0; i < items.size() && i * ih < h - 5; i++)
+    float ih = 30;
+    for (int i = 0; i < (int)items.size() && i * ih < h - 5; i++)
     {
-        sf::RectangleShape item(sf::Vector2f(ww - 6, ih - 2));
+        sf::RectangleShape item(sf::Vector2f(bw - 6, ih - 2));
         item.setPosition(x + 3, y + 3 + i * ih);
-        
-        sf::Color col;
-        if (i == highlight1) col = sf::Color(52, 152, 219); // Blue for old
-        else if (i == highlight2) col = sf::Color(46, 204, 113); // Green for new
-        else if (i == sel) col = sf::Color(230, 126, 34); // Orange for selected
-        else col = sf::Color(240, 240, 240);
-        
-        item.setFillColor(col);
+        item.setFillColor(i == sel ? sf::Color(52, 152, 219) : sf::Color(245, 245, 245));
         w.draw(item);
         
         sf::Text t(items[i], font, 11);
-        t.setPosition(x + 8, y + 8 + i * ih);
-        t.setFillColor(i == highlight1 || i == highlight2 ? sf::Color::White : sf::Color::Black);
+        t.setPosition(x + 8, y + 7 + i * ih);
+        t.setFillColor(i == sel ? sf::Color::White : sf::Color::Black);
+        w.draw(t);
+    }
+    
+    if (items.empty())
+    {
+        sf::Text t("No items", font, 11);
+        t.setPosition(x + 10, y + 10);
+        t.setFillColor(sf::Color(150, 150, 150));
         w.draw(t);
     }
 }
 
-void showMsg(string title, string text) { msgTitle = title; msgText = text; screen = 9; }
+void drawLabel(sf::RenderWindow& w, float x, float y, string txt, int size = 13)
+{
+    sf::Text t(txt, font, size);
+    t.setPosition(x, y);
+    t.setFillColor(sf::Color::Black);
+    w.draw(t);
+}
+
+void showMsg(string title, string text)
+{
+    msgTitle = title;
+    msgText = text;
+    prevScreen = screen;
+    screen = 9;
+}
+
+void clearInputs()
+{
+    input1 = "";
+    input2 = "";
+    input3 = "";
+    activeInput = 0;
+}
+
+void resetSelections()
+{
+    selRoom = -1;
+    selLec = -1;
+    selReq = -1;
+    selAvail = -1;
+}
+
+vector<string> getRoomList()
+{
+    vector<string> list;
+    for (int i = 0; i < sys.classroomCount(); i++)
+    {
+        Classroom* r = sys.getClassroom(i);
+        if (r != NULL)
+            list.push_back(to_string(i) + ". " + r->getName() + " (" + r->getBuilding() + ")");
+    }
+    return list;
+}
+
+vector<string> getScheduleList()
+{
+    vector<string> list;
+    if (selRoom >= 0 && selRoom < sys.classroomCount())
+    {
+        Classroom* room = sys.getClassroom(selRoom);
+        if (room != NULL)
+        {
+            vector<Lecture>& s = room->getSchedule();
+            for (int i = 0; i < (int)s.size(); i++)
+            {
+                string line = to_string(i) + ". " + s[i].getTime() + " | " + s[i].getSubject() + " [" + s[i].getStatusString() + "]";
+                list.push_back(line);
+            }
+        }
+    }
+    return list;
+}
+
+void updateAvailableList()
+{
+    availableSlots.clear();
+    availableIndices.clear();
+    
+    if (selRoom >= 0 && selRoom < sys.classroomCount())
+    {
+        Classroom* room = sys.getClassroom(selRoom);
+        if (room != NULL)
+        {
+            vector<Lecture>& s = room->getSchedule();
+            for (int i = 0; i < (int)s.size(); i++)
+            {
+                if (s[i].isAvailable())
+                {
+                    availableSlots.push_back(to_string(i) + ". " + s[i].getTime() + " | " + s[i].getSubject());
+                    availableIndices.push_back(i);
+                }
+            }
+        }
+    }
+}
+
+vector<string> getRequestList()
+{
+    vector<string> list;
+    for (int i = 0; i < sys.requestCount(); i++)
+    {
+        Request* r = sys.getRequest(i);
+        if (r != NULL)
+            list.push_back(to_string(i) + ". " + r->getRequester() + " | " + r->getRoom() + " | " + r->getTime() + " [" + r->getStatusString() + "]");
+    }
+    return list;
+}
+
+void handleTextInput(sf::Event& e)
+{
+    string* target = NULL;
+    if (activeInput == 1) target = &input1;
+    else if (activeInput == 2) target = &input2;
+    else if (activeInput == 3) target = &input3;
+    
+    if (target == NULL) return;
+    
+    if (e.text.unicode == 8 && target->size() > 0)
+        target->pop_back();
+    else if (e.text.unicode >= 32 && e.text.unicode < 127 && target->size() < 30)
+        *target += (char)e.text.unicode;
+}
+
+int getClickIndex(float mouseY, float listY, int itemCount)
+{
+    int idx = (int)((mouseY - listY - 3) / 30);
+    if (idx >= 0 && idx < itemCount) return idx;
+    return -1;
+}
+
+// Find lecture index by time string
+int findLectureByTime(int roomIdx, string timeStr)
+{
+    if (roomIdx < 0 || roomIdx >= sys.classroomCount()) return -1;
+    
+    Classroom* room = sys.getClassroom(roomIdx);
+    if (room == NULL) return -1;
+    
+    vector<Lecture>& schedule = room->getSchedule();
+    for (int i = 0; i < (int)schedule.size(); i++)
+    {
+        if (schedule[i].getTime() == timeStr)
+            return i;
+    }
+    return -1;
+}
 
 void runSFML()
 {
-    sf::RenderWindow window(sf::VideoMode(900, 550), "Classroom Management System");
+    sf::RenderWindow window(sf::VideoMode(900, 600), "Classroom Management System");
     window.setFramerateLimit(60);
     
     if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf"))
         if (!font.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"))
-            { cout << "Font error!\n"; return; }
+            if (!font.loadFromFile("/usr/share/fonts/TTF/DejaVuSans.ttf"))
+            {
+                cout << "Font error!\n";
+                return;
+            }
     
     while (window.isOpen())
     {
         sf::Event e;
-        sf::Vector2i m = sf::Mouse::getPosition(window);
-        float mx = m.x, my = m.y;
+        sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+        float mx = mousePos.x, my = mousePos.y;
         
         while (window.pollEvent(e))
         {
             if (e.type == sf::Event::Closed) window.close();
             
-            if (e.type == sf::Event::TextEntered && screen == 1)
-            {
-                if (e.text.unicode == 8 && input.size() > 0) input.pop_back();
-                else if (e.text.unicode >= 32 && e.text.unicode < 127 && input.size() < 20)
-                    input += (char)e.text.unicode;
-            }
+            if (e.type == sf::Event::TextEntered && activeInput > 0)
+                handleTextInput(e);
             
             if (e.type == sf::Event::MouseButtonReleased)
             {
-                // Main Menu
+                // ========== SCREEN 0: Main Menu ==========
                 if (screen == 0)
                 {
-                    if (mx > 320 && mx < 530 && my > 180 && my < 225) screen = 1;
-                    if (mx > 320 && mx < 530 && my > 240 && my < 285) screen = 3;
-                    if (mx > 320 && mx < 530 && my > 300 && my < 345) window.close();
+                    if (mx > 350 && mx < 550)
+                    {
+                        if (my > 180 && my < 225) { screen = 1; clearInputs(); }
+                        if (my > 240 && my < 285) { screen = 3; resetSelections(); }
+                        if (my > 300 && my < 345)
+                        {
+                            showMsg("System Status", "Classrooms: " + to_string(sys.classroomCount()) + 
+                                "\nRequests: " + to_string(sys.requestCount()) + 
+                                "\nPending: " + to_string(sys.pendingCount()));
+                        }
+                        if (my > 360 && my < 405) window.close();
+                    }
                 }
-                // Login
+                // ========== SCREEN 1: Admin Login ==========
                 else if (screen == 1)
                 {
-                    if (mx > 320 && mx < 420 && my > 280 && my < 315)
+                    if (mx > 340 && mx < 560 && my > 235 && my < 270) activeInput = 1;
+                    if (mx > 340 && mx < 440 && my > 290 && my < 325)
                     {
-                        if (sys.login(input)) { screen = 2; input = ""; }
+                        if (sys.login(input1)) { screen = 2; clearInputs(); resetSelections(); }
                         else showMsg("Error", "Wrong password!");
                     }
-                    if (mx > 440 && mx < 540 && my > 280 && my < 315) { screen = 0; input = ""; }
+                    if (mx > 460 && mx < 560 && my > 290 && my < 325) { screen = 0; clearInputs(); }
                 }
-                // Admin Panel
+                // ========== SCREEN 2: Admin Panel ==========
                 else if (screen == 2)
                 {
-                    if (mx > 30 && mx < 180 && my > 90 && my < 130) screen = 4;
-                    if (mx > 30 && mx < 180 && my > 140 && my < 180) screen = 5;
-                    if (mx > 30 && mx < 180 && my > 190 && my < 230)
+                    if (mx > 20 && mx < 160)
                     {
-                        if (selRoom >= 0 && selLec >= 0)
+                        if (my > 80 && my < 115) { screen = 4; resetSelections(); }
+                        if (my > 125 && my < 160) { screen = 5; resetSelections(); }
+                        if (my > 170 && my < 205) { screen = 7; clearInputs(); }
+                        if (my > 215 && my < 250)
                         {
-                            if (sys.markOff(selRoom, selLec)) showMsg("OK", "Marked OFF!");
-                            else showMsg("Error", "Cannot mark OFF!");
+                            if (selRoom >= 0 && selRoom < sys.classroomCount())
+                            {
+                                sys.deleteClassroom(selRoom);
+                                resetSelections();
+                                showMsg("Success", "Room deleted!");
+                            }
+                            else showMsg("Error", "Select a room first!");
                         }
-                        else showMsg("Error", "Select room & lecture!");
-                    }
-                    if (mx > 30 && mx < 180 && my > 240 && my < 280)
-                    {
-                        if (selRoom >= 0 && selLec >= 0)
+                        if (my > 260 && my < 295)
                         {
-                            if (sys.deleteLecture(selRoom, selLec)) { selLec = -1; showMsg("OK", "Deleted!"); }
-                            else showMsg("Error", "Cannot delete!");
+                            if (selRoom >= 0 && selLec >= 0)
+                            {
+                                if (sys.markOff(selRoom, selLec)) showMsg("Success", "Marked OFF!");
+                                else showMsg("Error", "Cannot mark OFF!");
+                            }
+                            else showMsg("Error", "Select room & lecture!");
                         }
-                        else showMsg("Error", "Select room & lecture!");
-                    }
-                    if (mx > 30 && mx < 180 && my > 290 && my < 330)
-                    {
-                        if (selRoom >= 0)
+                        if (my > 305 && my < 340)
                         {
-                            sys.deleteClassroom(selRoom);
-                            selRoom = -1; selLec = -1;
-                            showMsg("OK", "Classroom deleted!");
+                            if (selRoom >= 0 && selLec >= 0)
+                            {
+                                if (sys.deleteLecture(selRoom, selLec))
+                                {
+                                    selLec = -1;
+                                    showMsg("Success", "Lecture deleted!");
+                                }
+                                else showMsg("Error", "Cannot delete!");
+                            }
+                            else showMsg("Error", "Select room & lecture!");
                         }
-                        else showMsg("Error", "Select classroom!");
+                        if (my > 350 && my < 385) { screen = 8; clearInputs(); selLec = -1; selAvail = -1; }
+                        if (my > 395 && my < 430) { screen = 6; selReq = -1; }
+                        if (my > 440 && my < 475) { sys.logout(); screen = 0; resetSelections(); }
                     }
-                    if (mx > 30 && mx < 180 && my > 340 && my < 380) screen = 6;
-                    if (mx > 30 && mx < 180 && my > 390 && my < 430) { sys.logout(); screen = 0; }
-                    if (mx > 30 && mx < 180 && my > 440 && my < 480) screen = 7; // Reschedule
                     
-                    // Room list click
-                    if (mx > 200 && mx < 420) 
-                    { 
-                        int idx = (my - 93) / 32; 
-                        if (idx >= 0 && idx < sys.classroomCount()) 
+                    if (mx > 180 && mx < 400 && my > 100 && my < 450)
+                    {
+                        int idx = getClickIndex(my, 100, sys.classroomCount());
+                        if (idx >= 0) { selRoom = idx; selLec = -1; }
+                    }
+                    
+                    if (mx > 420 && mx < 880 && my > 100 && my < 450 && selRoom >= 0)
+                    {
+                        Classroom* room = sys.getClassroom(selRoom);
+                        if (room != NULL)
+                        {
+                            int idx = getClickIndex(my, 100, room->getLectureCount());
+                            if (idx >= 0) selLec = idx;
+                        }
+                    }
+                }
+                // ========== SCREEN 3: User Panel ==========
+                else if (screen == 3)
+                {
+                    if (mx > 350 && mx < 550)
+                    {
+                        if (my > 140 && my < 180) { screen = 4; resetSelections(); }
+                        if (my > 195 && my < 235) { screen = 5; resetSelections(); }
+                        if (my > 250 && my < 290) { screen = 11; resetSelections(); }
+                        if (my > 305 && my < 345) { screen = 10; resetSelections(); clearInputs(); }
+                        if (my > 360 && my < 400) screen = 0;
+                    }
+                }
+                // ========== SCREEN 4: View Classrooms ==========
+                else if (screen == 4)
+                {
+                    if (mx > 750 && mx < 870 && my > 520 && my < 555)
+                        screen = sys.isAdmin() ? 2 : 3;
+                    
+                    if (mx > 50 && mx < 400 && my > 100 && my < 480)
+                    {
+                        int idx = getClickIndex(my, 100, sys.classroomCount());
+                        if (idx >= 0) selRoom = idx;
+                    }
+                }
+                // ========== SCREEN 5: View Schedule ==========
+                else if (screen == 5)
+                {
+                    if (mx > 750 && mx < 870 && my > 520 && my < 555)
+                        screen = sys.isAdmin() ? 2 : 3;
+                    
+                    if (mx > 30 && mx < 250 && my > 100 && my < 480)
+                    {
+                        int idx = getClickIndex(my, 100, sys.classroomCount());
+                        if (idx >= 0) { selRoom = idx; selLec = -1; }
+                    }
+                    
+                    if (mx > 270 && mx < 870 && my > 100 && my < 480 && selRoom >= 0)
+                    {
+                        Classroom* room = sys.getClassroom(selRoom);
+                        if (room != NULL)
+                        {
+                            int idx = getClickIndex(my, 100, room->getLectureCount());
+                            if (idx >= 0) selLec = idx;
+                        }
+                    }
+                }
+                // ========== SCREEN 6: Requests ==========
+                else if (screen == 6)
+                {
+                    if (mx > 50 && mx < 170 && my > 450 && my < 485)
+                    {
+                        if (selReq >= 0 && selReq < sys.requestCount())
+                        {
+                            if (sys.approveRequest(selReq)) { selReq = -1; showMsg("Success", "Approved!"); }
+                            else showMsg("Error", "Cannot approve!");
+                        }
+                        else showMsg("Error", "Select a request!");
+                    }
+                    if (mx > 190 && mx < 310 && my > 450 && my < 485)
+                    {
+                        if (selReq >= 0 && selReq < sys.requestCount())
+                        {
+                            if (sys.rejectRequest(selReq)) { selReq = -1; showMsg("Success", "Rejected!"); }
+                            else showMsg("Error", "Cannot reject!");
+                        }
+                        else showMsg("Error", "Select a request!");
+                    }
+                    if (mx > 750 && mx < 870 && my > 450 && my < 485) { screen = 2; selReq = -1; }
+                    
+                    if (mx > 50 && mx < 600 && my > 100 && my < 430)
+                    {
+                        int idx = getClickIndex(my, 100, sys.requestCount());
+                        if (idx >= 0) selReq = idx;
+                    }
+                }
+                // ========== SCREEN 7: Add Classroom ==========
+                else if (screen == 7)
+                {
+                    if (mx > 300 && mx < 600 && my > 150 && my < 185) activeInput = 1;
+                    if (mx > 300 && mx < 600 && my > 210 && my < 245) activeInput = 2;
+                    if (mx > 300 && mx < 600 && my > 270 && my < 305) activeInput = 3;
+                    
+                    if (mx > 300 && mx < 420 && my > 330 && my < 365)
+                    {
+                        if (!input1.empty())
+                        {
+                            int cap = 50;
+                            if (!input3.empty())
+                            {
+                                try { cap = stoi(input3); } catch (...) { cap = 50; }
+                            }
+                            sys.addClassroom(input1, input2.empty() ? "Main" : input2, cap);
+                            clearInputs();
+                            showMsg("Success", "Classroom added!");
+                        }
+                        else showMsg("Error", "Enter room name!");
+                    }
+                    if (mx > 440 && mx < 560 && my > 330 && my < 365) { screen = 2; clearInputs(); }
+                }
+                // ========== SCREEN 8: Reschedule ==========
+                else if (screen == 8)
+                {
+                    // Room list
+                    if (mx > 30 && mx < 220 && my > 100 && my < 350)
+                    {
+                        int idx = getClickIndex(my, 100, sys.classroomCount());
+                        if (idx >= 0) 
                         { 
                             selRoom = idx; 
                             selLec = -1; 
-                            oldLec = -1;
-                            newLec = -1;
-                            rescheduleStep = 0;
-                        } 
+                            selAvail = -1;
+                            updateAvailableList();
+                        }
                     }
-                    // Lecture list click
-                    if (mx > 440 && mx < 820 && selRoom >= 0) 
-                    { 
-                        int idx = (my - 93) / 32;
-                        Classroom* r = sys.getClassroom(selRoom);
-                        if (r && idx >= 0 && idx < r->getLectureCount()) 
+                    
+                    // Lecture list (source)
+                    if (mx > 240 && mx < 480 && my > 100 && my < 350 && selRoom >= 0)
+                    {
+                        Classroom* room = sys.getClassroom(selRoom);
+                        if (room != NULL)
                         {
-                            if (screen == 7) // Reschedule screen
+                            int idx = getClickIndex(my, 100, room->getLectureCount());
+                            if (idx >= 0) selLec = idx;
+                        }
+                    }
+                    
+                    // Available slots list (target)
+                    if (mx > 500 && mx < 740 && my > 100 && my < 350 && selRoom >= 0)
+                    {
+                        updateAvailableList();
+                        int idx = getClickIndex(my, 100, (int)availableSlots.size());
+                        if (idx >= 0 && idx < (int)availableIndices.size())
+                        {
+                            selAvail = idx;
+                        }
+                    }
+                    
+                    // Reschedule button
+                    if (mx > 500 && mx < 620 && my > 380 && my < 415)
+                    {
+                        if (selRoom < 0)
+                            showMsg("Error", "Select a room!");
+                        else if (selLec < 0)
+                            showMsg("Error", "Select source lecture!");
+                        else if (selAvail < 0 || selAvail >= (int)availableIndices.size())
+                            showMsg("Error", "Select target slot!");
+                        else
+                        {
+                            Classroom* room = sys.getClassroom(selRoom);
+                            if (room != NULL && selLec < room->getLectureCount())
                             {
-                                if (rescheduleStep == 0)
+                                Lecture& lec = room->getSchedule()[selLec];
+                                
+                                if (lec.getSubject() == "Lunch Break")
+                                    showMsg("Error", "Cannot reschedule Lunch Break!");
+                                else if (lec.getSubject() == "Free Slot")
+                                    showMsg("Error", "Cannot reschedule Free Slot!");
+                                else if (lec.getStatus() != 0)
+                                    showMsg("Error", "Only ACTIVE lectures can be rescheduled!");
+                                else
                                 {
-                                    oldLec = idx;
-                                    rescheduleStep = 1;
-                                }
-                                else if (rescheduleStep == 1)
-                                {
-                                    newLec = idx;
-                                    // Try reschedule
-                                    if (sys.reschedule(selRoom, oldLec, newLec))
+                                    int targetIdx = availableIndices[selAvail];
+                                    bool success = sys.reschedule(selRoom, selLec, targetIdx);
+                                    if (success)
                                     {
-                                        showMsg("OK", "Rescheduled!");
-                                        oldLec = -1;
-                                        newLec = -1;
-                                        rescheduleStep = 0;
+                                        showMsg("Success", "Lecture rescheduled!");
+                                        selLec = -1;
+                                        selAvail = -1;
+                                        updateAvailableList();
                                     }
                                     else
-                                    {
-                                        showMsg("Error", "Cannot reschedule!\nOld must be ACTIVE\nNew must be Free Slot");
-                                        newLec = -1;
-                                        rescheduleStep = 0;
-                                    }
+                                        showMsg("Error", "Reschedule failed!");
                                 }
                             }
-                            else
-                            {
-                                selLec = idx;
-                            }
                         }
                     }
-                }
-                // User Panel
-                else if (screen == 3)
-                {
-                    if (mx > 320 && mx < 530 && my > 140 && my < 180) screen = 4;
-                    if (mx > 320 && mx < 530 && my > 195 && my < 235) screen = 5;
-                    if (mx > 320 && mx < 530 && my > 250 && my < 290)
+                    
+                    // Back button
+                    if (mx > 640 && mx < 760 && my > 380 && my < 415)
                     {
-                        if (selRoom >= 0 && selLec >= 0)
-                        {
-                            if (sys.facultyRequest("User", selRoom, selLec, "Booking"))
-                                showMsg("OK", "Request sent!");
-                            else showMsg("Error", "Slot not available!");
-                        }
-                        else showMsg("Error", "Select room & lecture!");
-                    }
-                    if (mx > 320 && mx < 530 && my > 305 && my < 345) screen = 0;
-                }
-                // View Classrooms
-                else if (screen == 4)
-                {
-                    if (mx > 700 && mx < 820 && my > 480 && my < 515) screen = sys.isAdmin() ? 2 : 3;
-                    if (mx > 50 && mx < 350) { int idx = (my - 93) / 32;
-                        if (idx >= 0 && idx < sys.classroomCount()) selRoom = idx; }
-                }
-                // View Schedule
-                else if (screen == 5)
-                {
-                    if (mx > 700 && mx < 820 && my > 480 && my < 515) screen = sys.isAdmin() ? 2 : 3;
-                    if (mx > 50 && mx < 280) { int idx = (my - 93) / 32;
-                        if (idx >= 0 && idx < sys.classroomCount()) { selRoom = idx; selLec = -1; } }
-                    if (mx > 300 && mx < 820 && selRoom >= 0) { int idx = (my - 93) / 32;
-                        Classroom* r = sys.getClassroom(selRoom);
-                        if (r && idx >= 0 && idx < r->getLectureCount()) selLec = idx; }
-                }
-                // Requests
-                else if (screen == 6)
-                {
-                    if (mx > 50 && mx < 170 && my > 420 && my < 455)
-                    {
-                        if (selLec >= 0 && sys.approveRequest(selLec)) { selLec = -1; showMsg("OK", "Approved!"); }
-                        else showMsg("Error", "Select request!");
-                    }
-                    if (mx > 190 && mx < 310 && my > 420 && my < 455)
-                    {
-                        if (selLec >= 0 && sys.rejectRequest(selLec)) { selLec = -1; showMsg("OK", "Rejected!"); }
-                        else showMsg("Error", "Select request!");
-                    }
-                    if (mx > 700 && mx < 820 && my > 420 && my < 455) { screen = 2; selLec = -1; }
-                    if (mx > 50 && mx < 500) { int idx = (my - 93) / 32;
-                        if (idx >= 0 && idx < sys.requestCount()) selLec = idx; }
-                }
-                // Reschedule Screen
-                else if (screen == 7)
-                {
-                    if (mx > 700 && mx < 820 && my > 480 && my < 515) 
-                    { 
-                        screen = 2; 
-                        oldLec = -1; 
-                        newLec = -1; 
-                        rescheduleStep = 0;
+                        screen = 2;
+                        clearInputs();
+                        resetSelections();
                     }
                 }
-                // Message
+                // ========== SCREEN 9: Message ==========
                 else if (screen == 9)
                 {
-                    if (mx > 360 && mx < 490 && my > 320 && my < 355) screen = sys.isAdmin() ? 2 : 0;
+                    if (mx > 380 && mx < 520 && my > 340 && my < 375) screen = prevScreen;
+                }
+                // ========== SCREEN 10: User Request ==========
+                else if (screen == 10)
+                {
+                    if (mx > 30 && mx < 250 && my > 100 && my < 420)
+                    {
+                        int idx = getClickIndex(my, 100, sys.classroomCount());
+                        if (idx >= 0)
+                        {
+                            selRoom = idx;
+                            selAvail = -1;
+                            selLec = -1;
+                            updateAvailableList();
+                        }
+                    }
+                    
+                    if (mx > 270 && mx < 560 && my > 100 && my < 420 && selRoom >= 0)
+                    {
+                        updateAvailableList();
+                        int idx = getClickIndex(my, 100, (int)availableSlots.size());
+                        if (idx >= 0 && idx < (int)availableIndices.size())
+                        {
+                            selAvail = idx;
+                            selLec = availableIndices[idx];
+                        }
+                    }
+                    
+                    if (mx > 590 && mx < 860 && my > 300 && my < 335) activeInput = 1;
+                    if (mx > 590 && mx < 860 && my > 360 && my < 395) activeInput = 2;
+                    
+                    if (mx > 590 && mx < 720 && my > 420 && my < 455)
+                    {
+                        if (input1.empty())
+                            showMsg("Error", "Enter your name!");
+                        else if (selRoom < 0)
+                            showMsg("Error", "Select a classroom!");
+                        else if (selLec < 0)
+                            showMsg("Error", "Select an available slot!");
+                        else
+                        {
+                            if (sys.facultyRequest(input1, selRoom, selLec, input2.empty() ? "Booking" : input2))
+                            {
+                                clearInputs();
+                                resetSelections();
+                                showMsg("Success", "Request sent!");
+                            }
+                            else
+                                showMsg("Error", "Slot not available!");
+                        }
+                    }
+                    
+                    if (mx > 740 && mx < 860 && my > 420 && my < 455)
+                    {
+                        screen = 3;
+                        clearInputs();
+                        resetSelections();
+                    }
+                }
+                // ========== SCREEN 11: View Available ==========
+                else if (screen == 11)
+                {
+                    if (mx > 750 && mx < 870 && my > 520 && my < 555) screen = 3;
+                    
+                    if (mx > 30 && mx < 250 && my > 100 && my < 480)
+                    {
+                        int idx = getClickIndex(my, 100, sys.classroomCount());
+                        if (idx >= 0)
+                        {
+                            selRoom = idx;
+                            updateAvailableList();
+                        }
+                    }
                 }
             }
         }
         
-        window.clear(sf::Color(236, 240, 241));
+        // ==================== DRAWING ====================
+        window.clear(sf::Color(240, 240, 240));
         
-        sf::Text title("Classroom Management System", font, 22);
-        title.setPosition(260, 15);
-        title.setFillColor(sf::Color(44, 62, 80));
+        sf::RectangleShape titleBar(sf::Vector2f(900, 50));
+        titleBar.setFillColor(sf::Color(44, 62, 80));
+        window.draw(titleBar);
+        
+        sf::Text title("Classroom Management System", font, 20);
+        title.setPosition(300, 12);
+        title.setFillColor(sf::Color::White);
         title.setStyle(sf::Text::Bold);
         window.draw(title);
         
+        // ========== SCREEN 0: Main Menu ==========
         if (screen == 0)
         {
-            sf::Text sub("9AM-8PM | Lectures 10AM-5PM | Pass: admin123", font, 11);
-            sub.setPosition(280, 50);
-            sub.setFillColor(sf::Color(100, 100, 100));
-            window.draw(sub);
-            
-            drawBtn(window, 320, 180, 210, 45, "Admin Login", sf::Color(52, 152, 219), mx > 180 && my < 225);
-            drawBtn(window, 320, 240, 210, 45, "User Menu", sf::Color(46, 204, 113), mx > 240 && my < 285);
-            drawBtn(window, 320, 300, 210, 45, "Exit", sf::Color(231, 76, 60), mx > 300 && my < 345);
+            drawLabel(window, 260, 70, "9AM-8PM | Lectures 10AM-5PM | Pass: admin123", 11);
+            drawBtn(window, 350, 180, 200, 45, "Admin Login", sf::Color(52, 152, 219), false);
+            drawBtn(window, 350, 240, 200, 45, "User Menu", sf::Color(46, 204, 113), false);
+            drawBtn(window, 350, 300, 200, 45, "System Status", sf::Color(155, 89, 182), false);
+            drawBtn(window, 350, 360, 200, 45, "Exit", sf::Color(231, 76, 60), false);
         }
+        // ========== SCREEN 1: Admin Login ==========
         else if (screen == 1)
         {
-            sf::Text lbl("Password:", font, 14);
-            lbl.setPosition(320, 210);
-            lbl.setFillColor(sf::Color::Black);
-            window.draw(lbl);
-            
-            drawInput(window, 320, 235, 220, 32, input, true);
-            drawBtn(window, 320, 280, 100, 35, "Login", sf::Color(46, 204, 113), false);
-            drawBtn(window, 440, 280, 100, 35, "Back", sf::Color(149, 165, 166), false);
+            drawLabel(window, 340, 200, "Enter Admin Password:");
+            drawInput(window, 340, 235, 220, 35, input1, "Password", activeInput == 1, true);
+            drawBtn(window, 340, 290, 100, 35, "Login", sf::Color(46, 204, 113), false);
+            drawBtn(window, 460, 290, 100, 35, "Back", sf::Color(149, 165, 166), false);
         }
+        // ========== SCREEN 2: Admin Panel ==========
         else if (screen == 2)
         {
-            drawBtn(window, 30, 90, 150, 40, "View Rooms", sf::Color(52, 152, 219), false);
-            drawBtn(window, 30, 140, 150, 40, "View Schedule", sf::Color(52, 152, 219), false);
-            drawBtn(window, 30, 190, 150, 40, "Mark OFF", sf::Color(230, 126, 34), false);
-            drawBtn(window, 30, 240, 150, 40, "Delete Lecture", sf::Color(231, 76, 60), false);
-            drawBtn(window, 30, 290, 150, 40, "Delete Room", sf::Color(192, 57, 43), false);
-            drawBtn(window, 30, 340, 150, 40, "Requests", sf::Color(155, 89, 182), false);
-            drawBtn(window, 30, 390, 150, 40, "Logout", sf::Color(149, 165, 166), false);
-            drawBtn(window, 30, 440, 150, 40, "Reschedule", sf::Color(155, 89, 182), false);
+            drawBtn(window, 20, 80, 140, 35, "View Rooms", sf::Color(52, 152, 219), false);
+            drawBtn(window, 20, 125, 140, 35, "View Schedule", sf::Color(52, 152, 219), false);
+            drawBtn(window, 20, 170, 140, 35, "Add Room", sf::Color(46, 204, 113), false);
+            drawBtn(window, 20, 215, 140, 35, "Delete Room", sf::Color(231, 76, 60), false);
+            drawBtn(window, 20, 260, 140, 35, "Mark OFF", sf::Color(230, 126, 34), false);
+            drawBtn(window, 20, 305, 140, 35, "Delete Lecture", sf::Color(192, 57, 43), false);
+            drawBtn(window, 20, 350, 140, 35, "Reschedule", sf::Color(155, 89, 182), false);
+            drawBtn(window, 20, 395, 140, 35, "Requests(" + to_string(sys.pendingCount()) + ")", sf::Color(52, 73, 94), false);
+            drawBtn(window, 20, 440, 140, 35, "Logout", sf::Color(149, 165, 166), false);
             
-            vector<string> rooms;
-            for (int i = 0; i < sys.classroomCount(); i++) 
-                rooms.push_back(sys.getClassroom(i)->getName());
-            drawList(window, 200, 90, 220, 350, rooms, selRoom);
+            drawLabel(window, 180, 80, "Classrooms:");
+            vector<string> rooms = getRoomList();
+            drawList(window, 180, 100, 220, 350, rooms, selRoom);
             
-            vector<string> lecs;
-            if (selRoom >= 0)
-            {
-                Classroom* r = sys.getClassroom(selRoom);
-                for (int i = 0; i < r->getLectureCount(); i++)
-                {
-                    Lecture* l = r->getLecture(i);
-                    string status = l->getStatusString();
-                    lecs.push_back(l->getTime() + " " + l->getSubject() + " [" + status + "]");
-                }
-            }
-            drawList(window, 440, 90, 380, 350, lecs, selLec);
+            drawLabel(window, 420, 80, "Schedule:");
+            vector<string> lecs = getScheduleList();
+            drawList(window, 420, 100, 460, 350, lecs, selLec);
             
-            sf::Text info("Pending: " + to_string(sys.pendingCount()), font, 12);
-            info.setPosition(30, 500);
-            info.setFillColor(sf::Color::Black);
-            window.draw(info);
+            drawLabel(window, 20, 490, "Select room & lecture, then click action button.", 11);
         }
+        // ========== SCREEN 3: User Panel ==========
         else if (screen == 3)
         {
-            drawBtn(window, 320, 140, 210, 40, "View Classrooms", sf::Color(52, 152, 219), false);
-            drawBtn(window, 320, 195, 210, 40, "View Schedule", sf::Color(52, 152, 219), false);
-            drawBtn(window, 320, 250, 210, 40, "Request Booking", sf::Color(46, 204, 113), false);
-            drawBtn(window, 320, 305, 210, 40, "Back", sf::Color(149, 165, 166), false);
+            drawBtn(window, 350, 140, 200, 40, "View Classrooms", sf::Color(52, 152, 219), false);
+            drawBtn(window, 350, 195, 200, 40, "View Schedule", sf::Color(52, 152, 219), false);
+            drawBtn(window, 350, 250, 200, 40, "View Available", sf::Color(46, 204, 113), false);
+            drawBtn(window, 350, 305, 200, 40, "Request Booking", sf::Color(155, 89, 182), false);
+            drawBtn(window, 350, 360, 200, 40, "Back", sf::Color(149, 165, 166), false);
         }
+        // ========== SCREEN 4: View Classrooms ==========
         else if (screen == 4)
         {
-            sf::Text lbl("All Classrooms", font, 16);
-            lbl.setPosition(50, 65);
-            lbl.setFillColor(sf::Color::Black);
-            window.draw(lbl);
+            drawLabel(window, 50, 75, "All Classrooms:", 16);
+            vector<string> rooms = getRoomList();
+            drawList(window, 50, 100, 350, 380, rooms, selRoom);
             
-            vector<string> rooms;
-            for (int i = 0; i < sys.classroomCount(); i++)
-            {
-                Classroom* r = sys.getClassroom(i);
-                rooms.push_back(r->getName() + " (" + r->getBuilding() + ") Cap:" + to_string(r->getCapacity()));
-            }
-            drawList(window, 50, 90, 300, 380, rooms, selRoom);
-            drawBtn(window, 700, 480, 120, 35, "Back", sf::Color(149, 165, 166), false);
-        }
-        else if (screen == 5)
-        {
-            sf::Text l1("Rooms", font, 13); l1.setPosition(50, 70); l1.setFillColor(sf::Color::Black); window.draw(l1);
-            sf::Text l2("Schedule (Click to select)", font, 13); l2.setPosition(300, 70); l2.setFillColor(sf::Color::Black); window.draw(l2);
-            
-            vector<string> rooms;
-            for (int i = 0; i < sys.classroomCount(); i++) rooms.push_back(sys.getClassroom(i)->getName());
-            drawList(window, 50, 90, 230, 380, rooms, selRoom);
-            
-            vector<string> lecs;
-            if (selRoom >= 0)
+            if (selRoom >= 0 && selRoom < sys.classroomCount())
             {
                 Classroom* r = sys.getClassroom(selRoom);
-                for (int i = 0; i < r->getLectureCount(); i++)
-                {
-                    Lecture* l = r->getLecture(i);
-                    lecs.push_back(l->getTime() + " | " + l->getSubject() + " [" + l->getStatusString() + "]");
-                }
-            }
-            drawList(window, 300, 90, 520, 380, lecs, selLec);
-            drawBtn(window, 700, 480, 120, 35, "Back", sf::Color(149, 165, 166), false);
-        }
-        // Screen 6: Requests
-        else if (screen == 6)
-        {
-            sf::Text lbl("All Requests", font, 16);
-            lbl.setPosition(50, 65);
-            lbl.setFillColor(sf::Color::Black);
-            window.draw(lbl);
-    
-            vector<string> reqs;
-            for (int i = 0; i < sys.requestCount(); i++)
-            {
-                Request* r = sys.getRequest(i);
                 if (r != NULL)
                 {
-                reqs.push_back(r->getRequester() + " | " + r->getRoom() + " | " + r->getTime() + " [" + r->getStatusString() + "]");
+                    drawLabel(window, 450, 100, "Details:", 14);
+                    drawLabel(window, 450, 130, "Name: " + r->getName());
+                    drawLabel(window, 450, 155, "Building: " + r->getBuilding());
+                    drawLabel(window, 450, 180, "Capacity: " + to_string(r->getCapacity()));
+                    drawLabel(window, 450, 205, "Lectures: " + to_string(r->getLectureCount()));
                 }
             }
-            drawList(window, 50, 90, 550, 310, reqs, selReq);
-    
-            drawBtn(window, 50, 420, 120, 35, "Approve", sf::Color(46, 204, 113), false);
-            drawBtn(window, 190, 420, 120, 35, "Reject", sf::Color(231, 76, 60), false);
-            drawBtn(window, 700, 420, 120, 35, "Back", sf::Color(149, 165, 166), false);
+            
+            drawBtn(window, 750, 520, 120, 35, "Back", sf::Color(149, 165, 166), false);
         }
-        else if (screen == 7) // Reschedule
+        // ========== SCREEN 5: View Schedule ==========
+        else if (screen == 5)
         {
-            sf::Text lbl1("Rooms", font, 13); lbl1.setPosition(50, 70); lbl1.setFillColor(sf::Color::Black); window.draw(lbl1);
-            sf::Text lbl2("Schedule (Select lecture to move)", font, 13); lbl2.setPosition(200, 70); lbl2.setFillColor(sf::Color::Black); window.draw(lbl2);
-            sf::Text lbl3("Free Slots (Select destination)", font, 13); lbl3.setPosition(500, 70); lbl3.setFillColor(sf::Color::Black); window.draw(lbl3);
+            drawLabel(window, 30, 75, "Rooms:", 14);
+            vector<string> rooms = getRoomList();
+            drawList(window, 30, 100, 220, 380, rooms, selRoom);
             
-            // Room list
-            vector<string> rooms;
-            for (int i = 0; i < sys.classroomCount(); i++) 
-                rooms.push_back(sys.getClassroom(i)->getName());
-            drawList(window, 50, 90, 130, 350, rooms, selRoom);
+            drawLabel(window, 270, 75, "Schedule:", 14);
+            vector<string> lecs = getScheduleList();
+            drawList(window, 270, 100, 600, 380, lecs, selLec);
             
-            // Schedule list
-            vector<string> scheduleList;
-            if (selRoom >= 0)
-            {
-                Classroom* r = sys.getClassroom(selRoom);
-                for (int i = 0; i < r->getLectureCount(); i++)
-                {
-                    Lecture* l = r->getLecture(i);
-                    scheduleList.push_back(l->getTime() + " " + l->getSubject() + " [" + l->getStatusString() + "]");
-                }
-            }
-            drawList(window, 200, 90, 280, 350, scheduleList, selLec, oldLec, newLec);
-            
-            // Free slots list
-            vector<string> freeSlots;
-            if (selRoom >= 0)
-            {
-                Classroom* r = sys.getClassroom(selRoom);
-                for (int i = 0; i < r->getLectureCount(); i++)
-                {
-                    Lecture* l = r->getLecture(i);
-                    if (l->isFreeSlot() && l->getStatus() == Constants::STATUS_OFF)
-                    {
-                        freeSlots.push_back(l->getTime() + " - Free");
-                    }
-                }
-            }
-            drawList(window, 500, 90, 200, 350, freeSlots, -1, -1, newLec);
-            
-            // Instructions
-            sf::Text instr;
-            instr.setFont(font);
-            if (rescheduleStep == 0)
-                instr.setString("Step 1: Select lecture to move (blue)");
-            else
-                instr.setString("Step 2: Select free slot (green)");
-            instr.setCharacterSize(12);
-            instr.setFillColor(sf::Color(60, 60, 60));
-            instr.setPosition(200, 460);
-            window.draw(instr);
-            
-            drawBtn(window, 700, 480, 120, 35, "Back", sf::Color(149, 165, 166), false);
+            drawBtn(window, 750, 520, 120, 35, "Back", sf::Color(149, 165, 166), false);
         }
+        // ========== SCREEN 6: Requests ==========
+        else if (screen == 6)
+        {
+            drawLabel(window, 50, 75, "All Requests:", 16);
+            vector<string> reqs = getRequestList();
+            drawList(window, 50, 100, 550, 330, reqs, selReq);
+            
+            drawBtn(window, 50, 450, 120, 35, "Approve", sf::Color(46, 204, 113), false);
+            drawBtn(window, 190, 450, 120, 35, "Reject", sf::Color(231, 76, 60), false);
+            drawBtn(window, 750, 450, 120, 35, "Back", sf::Color(149, 165, 166), false);
+        }
+        // ========== SCREEN 7: Add Classroom ==========
+        else if (screen == 7)
+        {
+            drawLabel(window, 300, 100, "Add New Classroom", 18);
+            
+            drawLabel(window, 300, 135, "Room Name:");
+            drawInput(window, 300, 150, 300, 35, input1, "e.g. Room 301", activeInput == 1);
+            
+            drawLabel(window, 300, 195, "Building:");
+            drawInput(window, 300, 210, 300, 35, input2, "e.g. Building A", activeInput == 2);
+            
+            drawLabel(window, 300, 255, "Capacity:");
+            drawInput(window, 300, 270, 300, 35, input3, "e.g. 50", activeInput == 3);
+            
+            drawBtn(window, 300, 330, 120, 35, "Add", sf::Color(46, 204, 113), false);
+            drawBtn(window, 440, 330, 120, 35, "Cancel", sf::Color(149, 165, 166), false);
+        }
+        // ========== SCREEN 8: Reschedule ==========
+        else if (screen == 8)
+        {
+            drawLabel(window, 30, 75, "1. Select Room:", 14);
+            vector<string> rooms = getRoomList();
+            drawList(window, 30, 100, 190, 250, rooms, selRoom);
+            
+            drawLabel(window, 240, 75, "2. Select Lecture (ACTIVE):", 14);
+            vector<string> lecs = getScheduleList();
+            drawList(window, 240, 100, 240, 250, lecs, selLec);
+            
+            drawLabel(window, 500, 75, "3. Select Target Slot:", 14);
+            updateAvailableList();
+            drawList(window, 500, 100, 240, 250, availableSlots, selAvail);
+            
+            if (availableSlots.empty() && selRoom >= 0)
+                drawLabel(window, 510, 110, "No available slots!", 11);
+            
+            // Show selection info
+            if (selRoom >= 0 && selLec >= 0)
+            {
+                Classroom* room = sys.getClassroom(selRoom);
+                if (room != NULL && selLec < room->getLectureCount())
+                {
+                    Lecture& lec = room->getSchedule()[selLec];
+                    drawLabel(window, 30, 360, "Source: " + lec.getSubject() + " (" + lec.getTime() + ") [" + lec.getStatusString() + "]", 12);
+                }
+            }
+            
+            if (selAvail >= 0 && selAvail < (int)availableSlots.size())
+            {
+                drawLabel(window, 30, 385, "Target: " + availableSlots[selAvail], 12);
+            }
+            
+            drawBtn(window, 500, 380, 120, 35, "Reschedule", sf::Color(155, 89, 182), false);
+            drawBtn(window, 640, 380, 120, 35, "Back", sf::Color(149, 165, 166), false);
+        }
+        // ========== SCREEN 9: Message ==========
         else if (screen == 9)
         {
-            sf::RectangleShape ov(sf::Vector2f(900, 550));
-            ov.setFillColor(sf::Color(0, 0, 0, 100));
-            window.draw(ov);
+            sf::RectangleShape overlay(sf::Vector2f(900, 600));
+            overlay.setFillColor(sf::Color(0, 0, 0, 120));
+            window.draw(overlay);
             
-            sf::RectangleShape box(sf::Vector2f(300, 150));
-            box.setPosition(275, 190);
+            sf::RectangleShape box(sf::Vector2f(340, 170));
+            box.setPosition(280, 200);
             box.setFillColor(sf::Color::White);
-            box.setOutlineThickness(2);
+            box.setOutlineThickness(3);
             box.setOutlineColor(sf::Color(52, 152, 219));
             window.draw(box);
             
-            sf::Text t(msgTitle, font, 16);
-            t.setPosition(290, 210);
-            t.setFillColor(sf::Color::Black);
+            sf::Text t(msgTitle, font, 18);
+            t.setPosition(300, 220);
+            t.setFillColor(sf::Color(44, 62, 80));
             t.setStyle(sf::Text::Bold);
             window.draw(t);
             
-            sf::Text m(msgText, font, 13);
-            m.setPosition(290, 250);
-            m.setFillColor(sf::Color(60, 60, 60));
-            window.draw(m);
+            sf::Text msg(msgText, font, 13);
+            msg.setPosition(300, 260);
+            msg.setFillColor(sf::Color(60, 60, 60));
+            window.draw(msg);
             
-            drawBtn(window, 360, 320, 130, 35, "OK", sf::Color(52, 152, 219), false);
+            drawBtn(window, 380, 340, 140, 35, "OK", sf::Color(52, 152, 219), false);
+        }
+        // ========== SCREEN 10: User Request ==========
+        else if (screen == 10)
+        {
+            drawLabel(window, 30, 75, "1. Select Room:", 14);
+            vector<string> rooms = getRoomList();
+            drawList(window, 30, 100, 220, 320, rooms, selRoom);
+            
+            drawLabel(window, 270, 75, "2. Select Available Slot:", 14);
+            updateAvailableList();
+            drawList(window, 270, 100, 290, 320, availableSlots, selAvail);
+            
+            if (availableSlots.empty() && selRoom >= 0)
+                drawLabel(window, 280, 110, "No slots available!", 11);
+            
+            drawLabel(window, 590, 280, "3. Your Name:");
+            drawInput(window, 590, 300, 270, 35, input1, "Enter your name", activeInput == 1);
+            
+            drawLabel(window, 590, 340, "4. Purpose:");
+            drawInput(window, 590, 360, 270, 35, input2, "e.g. Extra class", activeInput == 2);
+            
+            drawBtn(window, 590, 420, 130, 35, "Submit", sf::Color(46, 204, 113), false);
+            drawBtn(window, 740, 420, 120, 35, "Back", sf::Color(149, 165, 166), false);
+        }
+        // ========== SCREEN 11: View Available ==========
+        else if (screen == 11)
+        {
+            drawLabel(window, 30, 75, "Select Room:", 14);
+            vector<string> rooms = getRoomList();
+            drawList(window, 30, 100, 220, 380, rooms, selRoom);
+            
+            drawLabel(window, 270, 75, "Available Slots:", 14);
+            updateAvailableList();
+            drawList(window, 270, 100, 400, 380, availableSlots, -1);
+            
+            if (availableSlots.empty() && selRoom >= 0)
+                drawLabel(window, 280, 110, "No slots available in this room!", 12);
+            
+            drawBtn(window, 750, 520, 120, 35, "Back", sf::Color(149, 165, 166), false);
         }
         
         window.display();
