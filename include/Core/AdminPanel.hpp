@@ -4,7 +4,7 @@
 #include <string>
 using namespace std;
 
-class AdminPanel {
+class AdminPanel { // Abstraction (Pure Virtual Function Used)
 public:
     virtual void addClassroom(string name, string building, int capacity) = 0;
     virtual bool deleteClassroom(int index) = 0;

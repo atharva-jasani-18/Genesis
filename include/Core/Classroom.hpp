@@ -6,7 +6,7 @@
 #include "Lecture.hpp"
 using namespace std;
 
-class Classroom {
+class Classroom { // Encapsulation & Polymoorphism Used
 private:
     string name;
     string building;

@@ -8,7 +8,7 @@
 #include "Request.hpp"
 using namespace std;
 
-class ClassroomSystem : public AdminPanel {
+class ClassroomSystem : public AdminPanel { // Inheritance Used
 private:
     vector<Classroom> classrooms; // vector<type> variable_name;
     vector<Request> requests;

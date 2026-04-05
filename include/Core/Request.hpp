@@ -4,7 +4,7 @@
 #include <string>
 using namespace std;
 
-class Request {
+class Request { // Encapsulation & Polymorphism Used
 private:
     string requester;
     string room;
